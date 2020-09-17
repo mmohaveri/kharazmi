@@ -9,6 +9,7 @@ from setuptools import setup, find_packages
 
 def run_setup():
     requirements = [
+        "sly>=0.4",
     ]
 
     python_requirement = ">=3.6"
