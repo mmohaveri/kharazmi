@@ -34,60 +34,60 @@ class EquationParser(Parser):
     tokens = EquationLexer.tokens
 
     precedence = (
-        ("left", PLUS, MINUS),
-        ("left", TIMES, DIVIDE),
-        ("left", POWER),
-        ('right', UMINUS),
+        ("left", PLUS, MINUS),  # type: ignore
+        ("left", TIMES, DIVIDE),  # type: ignore
+        ("left", POWER),  # type: ignore
+        ('right', UMINUS),  # type: ignore
     )
 
     start = 'expression'
 
-    @_("expression PLUS expression")
-    def expression(self, p):
+    @_("expression PLUS expression")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression0 + p.expression1
 
-    @_("expression MINUS expression")
-    def expression(self, p):
+    @_("expression MINUS expression")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression0 - p.expression1
 
-    @_("expression TIMES expression")
-    def expression(self, p):
+    @_("expression TIMES expression")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression0 * p.expression1
 
-    @_("expression DIVIDE expression")
-    def expression(self, p):
+    @_("expression DIVIDE expression")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression0 / p.expression1
 
-    @_("expression POWER expression")
-    def expression(self, p):
+    @_("expression POWER expression")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression0 ** p.expression1
 
-    @_("'(' expression ')'")
-    def expression(self, p):
+    @_("'(' expression ')'")  # type: ignore
+    def expression(self, p):  # type: ignore
         return p.expression
 
-    @_("MINUS expression %prec UMINUS")
-    def expression(self, p):
+    @_("MINUS expression %prec UMINUS")  # type: ignore
+    def expression(self, p):  # type: ignore
         return -p.expression
 
-    @_("NUMBER")
-    def expression(self, p):
+    @_("NUMBER")  # type: ignore
+    def expression(self, p):  # type: ignore
         return Number(p[0])
 
-    @_("IDENTIFIER")
-    def expression(self, p):
+    @_("IDENTIFIER")  # type: ignore
+    def expression(self, p):  # type: ignore
         return Variable(p[0])
 
-    @_("IDENTIFIER '(' argument ')'")
-    def expression(self, p):
+    @_("IDENTIFIER '(' argument ')'")  # type: ignore
+    def expression(self, p):  # type: ignore
         return Function(p[0], p[2])
 
-    @_("expression")
-    def argument(self, p):
+    @_("expression")  # type: ignore
+    def argument(self, p):  # type: ignore
         return FunctionArgument(p.expression)
 
-    @_("argument ',' expression")
-    def argument(self, p):
+    @_("argument ',' expression")  # type: ignore
+    def argument(self, p):  # type: ignore
         return p.argument + p.expression
 
     def error(self, p) -> NoReturn:
