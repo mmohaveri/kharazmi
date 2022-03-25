@@ -15,6 +15,9 @@ def main():
 
         expression = parser.parse(cmd)
         print(f"You've entered: {str(expression)}")
+        if expression is None:
+            raise RuntimeError("Sorry, we were not able to parse your expression.")
+
         print(f"You can do it in code using: {repr(expression)}")
 
         kwargs = {}
