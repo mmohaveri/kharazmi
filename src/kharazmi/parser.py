@@ -1,7 +1,8 @@
+from typing import NoReturn, Optional
 from sly import Parser
 
 from .exceptions import ParseError
-from .models import Function, Number, Variable, FunctionArgument
+from .models import BaseExpression, Function, Number, Variable, FunctionArgument
 from .lexer import EquationLexer
 
 
@@ -27,7 +28,7 @@ class EquationParser(Parser):
     def __init__(self):
         self.lexer = EquationLexer()
 
-    def parse(self, inp: str):
+    def parse(self, inp: str) -> Optional[BaseExpression]:
         return super().parse(self.lexer.tokenize(inp))
 
     tokens = EquationLexer.tokens
@@ -89,7 +90,7 @@ class EquationParser(Parser):
     def argument(self, p):
         return p.argument + p.expression
 
-    def error(self, p):
+    def error(self, p) -> NoReturn:
         if p is None:
             raise ParseError(f"Incomplete expression.")
 
