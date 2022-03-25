@@ -6,13 +6,13 @@ from .exceptions import LexError
 
 class EquationLexer(Lexer):
     tokens = {
-        NUMBER,
-        IDENTIFIER,
-        PLUS,
-        MINUS,
-        TIMES,
-        DIVIDE,
-        POWER,
+        NUMBER,  # type: ignore
+        IDENTIFIER,  # type: ignore
+        PLUS,  # type: ignore
+        MINUS,  # type: ignore
+        TIMES,  # type: ignore
+        DIVIDE,  # type: ignore
+        POWER,  # type: ignore
     }
 
     literals = ["(", ")", ","]
