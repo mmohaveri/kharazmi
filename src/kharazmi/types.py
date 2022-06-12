@@ -1,39 +1,39 @@
-from typing import Union, Protocol
+from typing import Any, Protocol, SupportsBytes, runtime_checkable
 
 
-class SupportMath(Protocol):
-    def __add__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+@runtime_checkable
+class SupportsMath(Protocol):
+    def __add__(self, _other: Any) -> "DataContainer": ...
 
-    def __radd__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __radd__(self, _other: Any) -> "DataContainer": ...
 
-    def __sub__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __sub__(self, _other: Any) -> "DataContainer": ...
 
-    def __rsub__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __rsub__(self, _other: Any) -> "DataContainer": ...
 
-    def __mul__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __mul__(self, _other: Any) -> "DataContainer": ...
 
-    def __rmul__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __rmul__(self, _other: Any) -> "DataContainer": ...
 
-    def __truediv__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __truediv__(self, _other: Any) -> "DataContainer": ...
 
-    def __rtruediv__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __rtruediv__(self, _other: Any) -> "DataContainer": ...
 
-    def __pow__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __pow__(self, _other: Any) -> "DataContainer": ...
 
-    def __rpow__(self, operand: "DataContainer") -> "DataContainer":
-        raise NotImplementedError
+    def __rpow__(self, _other: Any) -> "DataContainer": ...
 
-    def __neg__(self) -> "DataContainer":
-        raise NotImplementedError
+    def __neg__(self) -> "DataContainer": ...
 
 
-DataContainer = Union[int, float, complex, str, SupportMath]
+DataContainer = int | float | complex | SupportsMath | str | SupportsBytes
+
+
+class Function(Protocol):
+    def __call__(self, *args: DataContainer) -> DataContainer:
+        raise NotImplementedError()
+
+
+@runtime_checkable
+class SupportsTrunc(Protocol):
+    def __trunc__(self) -> int: ...

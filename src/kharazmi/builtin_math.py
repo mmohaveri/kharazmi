@@ -1,60 +1,102 @@
 import math
+from typing import Callable, Dict, SupportsAbs, SupportsFloat, SupportsRound
 
-from .models import Function
+from .types import DataContainer, Function, SupportsTrunc
 
-functions = {
-    "abs": abs,
-    "max": max,
-    "min": min,
-    "round": round,
-    'acos': math.acos,
-    'acosh': math.acosh,
-    'asin': math.asin,
-    'asinh': math.asinh,
-    'atan': math.atan,
-    'atan2': math.atan2,
-    'atanh': math.atanh,
-    'ceil': math.ceil,
-    'copysign': math.copysign,
-    'cos': math.cos,
-    'cosh': math.cosh,
-    'degrees': math.degrees,
-    'erf': math.erf,
-    'erfc': math.erfc,
-    'exp': math.exp,
-    'expm1': math.expm1,
-    'fabs': math.fabs,
-    'factorial': math.factorial,
-    'floor': math.floor,
-    'fmod': math.fmod,
-    'frexp': math.frexp,
-    'fsum': math.fsum,
-    'gamma': math.gamma,
-    'gcd': math.gcd,
-    'hypot': math.hypot,
-    'isclose': math.isclose,
-    'isfinite': math.isfinite,
-    'isinf': math.isinf,
-    'isnan': math.isnan,
-    'ldexp': math.ldexp,
-    'lgamma': math.lgamma,
-    'log': math.log,
-    'log1p': math.log1p,
-    'log10': math.log10,
-    'log2': math.log2,
-    'modf': math.modf,
-    'pow': math.pow,
-    'radians': math.radians,
-    'remainder': math.remainder,
-    'sin': math.sin,
-    'sinh': math.sinh,
-    'sqrt': math.sqrt,
-    'tan': math.tan,
-    'tanh': math.tanh,
-    'trunc': math.trunc,
+from .models import FunctionExpression
+
+
+def _abs(inp: DataContainer) -> DataContainer:
+    if not isinstance(inp, SupportsAbs):
+        raise TypeError("Invalid input type, input does not support `__abs__`.")
+
+    return abs(inp)
+
+
+def _round(inp: DataContainer) -> DataContainer:
+    if not isinstance(inp, SupportsRound):
+        raise TypeError("Invalid input type, input does not support `__round__`.")
+
+    return round(inp)
+
+
+def _trunc(inp: DataContainer) -> DataContainer:
+    if not isinstance(inp, SupportsTrunc):
+        raise TypeError("Invalid input type, input does not support `__trunc__`.")
+
+    return math.trunc(inp)
+
+
+def _float_function(func: Callable[[SupportsFloat], float]) -> Callable[[DataContainer], DataContainer]:
+    def fn(inp: DataContainer) -> DataContainer:
+        if not isinstance(inp, SupportsFloat):
+            raise TypeError("Invalid input type, input does not support `float`.")
+
+        return func(inp)
+
+    return fn
+
+
+def _two_float_function(func: Callable[[SupportsFloat, SupportsFloat], float]) -> Callable[[DataContainer, DataContainer], DataContainer]:
+    def fn(inp1: DataContainer, inp2: DataContainer) -> DataContainer:
+        if not isinstance(inp1, SupportsFloat):
+            raise TypeError("Invalid input type, input does not support `float`.")
+
+        if not isinstance(inp2, SupportsFloat):
+            raise TypeError("Invalid input type, input does not support `float`.")
+
+        return func(inp1, inp2)
+
+    return fn
+
+
+functions: Dict[str, Function] = {
+    "abs": _abs,
+
+    "round": _round,
+    'floor': _float_function(math.floor),
+    'ceil': _float_function(math.ceil),
+    'trunc': _trunc,
+
+    "cos": _float_function(math.cos),
+    "acos": _float_function(math.acos),
+    "cosh": _float_function(math.cosh),
+    "acosh": _float_function(math.acosh),
+    "sin": _float_function(math.sin),
+    'asin': _float_function(math.asin),
+    "sinh": _float_function(math.sinh),
+    "asinh": _float_function(math.asinh),
+    "tan": _float_function(math.tan),
+    "atan": _float_function(math.atan),
+    "atan2": _two_float_function(math.atan2),
+    "tanh": _float_function(math.tanh),
+    "atanh": _float_function(math.atanh),
+    'copysign': _two_float_function(math.copysign),
+    'degrees': _float_function(math.degrees),
+    'radians': _float_function(math.radians),
+
+    'erf': _float_function(math.erf),
+    'erfc': _float_function(math.erfc),
+    'exp': _float_function(math.exp),
+    'expm1': _float_function(math.expm1),
+    'fabs': _float_function(math.fabs),
+    'fmod': _two_float_function(math.fmod),
+    'gamma': _float_function(math.gamma),
+    'isfinite': _float_function(math.isfinite),
+    'isinf': _float_function(math.isinf),
+    'isnan': _float_function(math.isnan),
+    'lgamma': _float_function(math.lgamma),
+    'pow': _two_float_function(math.pow),
+    'log': _float_function(math.log),
+    'log1p': _float_function(math.log1p),
+    'log10': _float_function(math.log10),
+    'log2': _float_function(math.log2),
+    'remainder': _two_float_function(math.remainder),
+    'sqrt': _float_function(math.sqrt),
 }
 
 
+# TODO: Find a way to support variadic functions (min, max, math.fsum, math.gcd, math.hypot)
 def activate_builtin_math():
     for name, fn in functions.items():
-        Function.register(name, fn)
+        FunctionExpression.register(name, fn)

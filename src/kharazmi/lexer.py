@@ -1,18 +1,20 @@
-from sly import Lexer
-from sly.lex import Token
+from typing import Set
+from sly import Lexer  # pyright: ignore [reportMissingTypeStubs]
+from sly.lex import Token  # pyright: ignore [reportMissingTypeStubs]
+
 
 from .exceptions import LexError
 
 
 class EquationLexer(Lexer):
-    tokens = {
-        NUMBER,  # type: ignore
-        IDENTIFIER,  # type: ignore
-        PLUS,  # type: ignore
-        MINUS,  # type: ignore
-        TIMES,  # type: ignore
-        DIVIDE,  # type: ignore
-        POWER,  # type: ignore
+    tokens: Set[str] = {
+        NUMBER,  # pyright: ignore [reportUndefinedVariable]
+        IDENTIFIER,  # pyright: ignore [reportUndefinedVariable]
+        PLUS,  # pyright: ignore [reportUndefinedVariable]
+        MINUS,  # pyright: ignore [reportUndefinedVariable]
+        TIMES,  # pyright: ignore [reportUndefinedVariable]
+        DIVIDE,  # pyright: ignore [reportUndefinedVariable]
+        POWER,  # pyright: ignore [reportUndefinedVariable]
     }
 
     literals = ["(", ")", ","]

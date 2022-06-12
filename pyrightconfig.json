@@ -2,6 +2,10 @@
     "include": [
         "./src/**"
     ],
+    "exclude": [
+        "./src/kharazmi/lexer.py",
+        "./src/kharazmi/parser.py",
+    ],
     "strict": [
         // "./src/**"
     ],

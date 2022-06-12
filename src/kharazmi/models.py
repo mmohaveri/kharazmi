@@ -1,17 +1,12 @@
 from abc import ABC, abstractmethod
 import functools
 
-from typing import Callable, Dict, List, Set, Union
+from typing import Dict, List, Set, Union
 
-from .types import DataContainer
+from .types import DataContainer, Function
 
 
 class BaseExpression(ABC):
-    def __new__(cls, *args, **kwargs):
-        if cls is BaseExpression:
-            raise TypeError("'BaseExpression' class may not be instantiated directly")
-        return object.__new__(cls)
-
     @abstractmethod
     def evaluate(self, **kwargs: DataContainer) -> DataContainer:
         raise NotImplementedError
@@ -56,13 +51,6 @@ class BaseExpression(ABC):
 
 
 class BinaryExpression(BaseExpression):
-    _operator: str
-
-    def __new__(cls, *args, **kwargs):
-        if cls is BaseExpression:
-            raise TypeError("'BinaryExpression' class may not be instantiated directly")
-        return super().__new__(cls, *args, **kwargs)
-
     def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
         self._right_hand_side = right_hand_side
         self._left_hand_side = left_hand_side
@@ -76,8 +64,12 @@ class BinaryExpression(BaseExpression):
     def variables(self) -> Set[str]:
         return self._right_hand_side.variables.union(self._left_hand_side.variables)
 
-    def _apply(self, left_hand_side: DataContainer, right_hand_side: DataContainer) -> DataContainer:
-        raise NotImplementedError
+    @property
+    @abstractmethod
+    def _operator(cls) -> str: ...
+
+    @abstractmethod
+    def _apply(self, left_hand_side: DataContainer, right_hand_side: DataContainer) -> DataContainer: ...
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({repr(self._left_hand_side)}, {repr(self._right_hand_side)})"
@@ -86,14 +78,7 @@ class BinaryExpression(BaseExpression):
         return f"{str(self._left_hand_side)} {self._operator} {str(self._right_hand_side)}"
 
 
-class UnaryExpression(BaseExpression):
-    _operator: str
-
-    def __new__(cls, *args, **kwargs):
-        if cls is BaseExpression:
-            raise TypeError("'UnaryExpression' class may not be instantiated directly")
-        return super().__new__(cls, *args, **kwargs)
-
+class UnaryExpression(BaseExpression, ABC):
     def __init__(self, operand: BaseExpression) -> None:
         self._operand = operand
 
@@ -105,8 +90,12 @@ class UnaryExpression(BaseExpression):
     def variables(self) -> Set[str]:
         return self._operand.variables
 
-    def _apply(self, value: DataContainer) -> DataContainer:
-        raise NotImplementedError
+    @property
+    @abstractmethod
+    def _operator(cls) -> str: ...
+
+    @abstractmethod
+    def _apply(self, value: DataContainer) -> DataContainer: ...
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({repr(self._operand)})"
@@ -162,26 +151,26 @@ class Variable(BaseExpression):
         return self._name
 
 
-class Function(BaseExpression):
-    supported_functions = {}
+class FunctionExpression(BaseExpression):
+    supported_functions: Dict[str, Function] = {}
 
     def __init__(self, name: str, argument: "FunctionArgument") -> None:
         self._name = name
         self._argument = argument
 
     def evaluate(self, **kwargs: DataContainer) -> DataContainer:
-        if self._name not in Function.supported_functions.keys():
+        if self._name not in self.supported_functions.keys():
             raise ValueError(f"Function `{self._name}` has not been defined!")
 
-        return Function.supported_functions[self._name](*self._argument.evaluate(**kwargs))
+        return self.supported_functions[self._name](*self._argument.evaluate(**kwargs))
 
     @ property
     def variables(self) -> Set[str]:
         return self._argument.variables
 
-    @ staticmethod
-    def register(name: str, runner: Callable):
-        Function.supported_functions[name] = runner
+    @ classmethod
+    def register(cls, name: str, runner: Function) -> None:
+        cls.supported_functions[name] = runner
 
     def __repr__(self) -> str:
         return f"Function('{self._name}', {repr(self._argument)})"
@@ -190,7 +179,7 @@ class Function(BaseExpression):
         return f"{self._name}({str(self._argument)})"
 
 
-register_function = Function.register
+register_function = FunctionExpression.register
 
 
 class FunctionArgument(object):
@@ -230,60 +219,54 @@ class FunctionArgument(object):
 
 
 class AdditionExpression(BinaryExpression):
-    _operator = "+"
-
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        super().__init__(left_hand_side, right_hand_side)
+    @property
+    def _operator(self) -> str:
+        return "+"
 
     def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
         return left_hand_side + right_hand_side
 
 
 class SubtractionExpression(BinaryExpression):
-    _operator = "-"
-
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        super().__init__(left_hand_side, right_hand_side)
+    @property
+    def _operator(self) -> str:
+        return "-"
 
     def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
         return left_hand_side - right_hand_side
 
 
 class MultiplicationExpression(BinaryExpression):
-    _operator = "*"
-
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        super().__init__(left_hand_side, right_hand_side)
+    @property
+    def _operator(self) -> str:
+        return "*"
 
     def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
         return left_hand_side * right_hand_side
 
 
 class DivisionExpression(BinaryExpression):
-    _operator = "/"
-
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        super().__init__(left_hand_side, right_hand_side)
+    @property
+    def _operator(self) -> str:
+        return "/"
 
     def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
         return left_hand_side / right_hand_side
 
 
 class ExponentiationExpression(BinaryExpression):
-    _operator = "^"
-
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        super().__init__(left_hand_side, right_hand_side)
+    @property
+    def _operator(self) -> str:
+        return "^"
 
     def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
         return left_hand_side ** right_hand_side
 
 
 class NegativeExpression(UnaryExpression):
-    _operator = "-"
-
-    def __init__(self, operand: BaseExpression) -> None:
-        super().__init__(operand)
+    @property
+    def _operator(self) -> str:
+        return "-"
 
     def _apply(self, value: BaseExpression) -> BaseExpression:
         return -value
