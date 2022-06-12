@@ -1,0 +1,33 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "dictionaries": [
+    "en-US",
+    "companies",
+    "softwareTerms",
+    "misc"
+  ],
+  "words": [
+    // Python keywords
+    "sdist",
+    "bdist",
+    "pypi",
+    "mypy",
+    // Python packages
+    "pyright",
+    "numpy",
+    // Packages
+    "dunder",
+    // Parser
+    "UMINUS",
+    "prec",
+    // Other english words
+    "plugable",
+    // Proper Nouns
+    "mohaveri",
+    "kharazmi",
+    "Algorithmi"
+  ],
+  "flagWords": [],
+  "import": []
+}
