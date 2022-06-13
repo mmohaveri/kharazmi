@@ -3,18 +3,22 @@ import functools
 
 from typing import Dict, List, Set, Union
 
-from .types import DataContainer, Function
+from .types import Function, SupportsArithmetic, SupportsBoolean, SupportsConditional, SupportsString, TypedValue
 
 
 class BaseExpression(ABC):
     @abstractmethod
-    def evaluate(self, **kwargs: DataContainer) -> DataContainer:
-        raise NotImplementedError
+    def evaluate(self, **variables_values: TypedValue) -> TypedValue: ...
 
     @property
     @abstractmethod
-    def variables(self) -> Set[str]:
-        raise NotImplementedError
+    def variables(self) -> Set[str]: ...
+
+    @abstractmethod
+    def __repr__(self) -> str: ...
+
+    @abstractmethod
+    def __str__(self) -> str: ...
 
     def __add__(self, operand: "BaseExpression") -> "BaseExpression":
         return AdditionExpression(self, operand)
@@ -49,96 +53,43 @@ class BaseExpression(ABC):
     def __neg__(self) -> "BaseExpression":
         return NegativeExpression(self)
 
+    def __lt__(self, operand: "BaseExpression") -> "BaseExpression":
+        return LessThanExpression(self, operand)
 
-class BinaryExpression(BaseExpression):
-    def __init__(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> None:
-        self._right_hand_side = right_hand_side
-        self._left_hand_side = left_hand_side
+    def __le__(self, operand: "BaseExpression") -> "BaseExpression":
+        return LessThanOrEqualExpression(self, operand)
 
-    def evaluate(self, **kwargs: DataContainer) -> DataContainer:
-        left_hand_side = self._left_hand_side.evaluate(**kwargs)
-        right_hand_side = self._right_hand_side.evaluate(**kwargs)
-        return self._apply(left_hand_side, right_hand_side)
+    def __gt__(self, operand: "BaseExpression") -> "BaseExpression":
+        return GreaterThanExpression(self, operand)
 
-    @property
-    def variables(self) -> Set[str]:
-        return self._right_hand_side.variables.union(self._left_hand_side.variables)
+    def __ge__(self, operand: "BaseExpression") -> "BaseExpression":
+        return GreaterThanOrEqualExpression(self, operand)
 
-    @property
-    @abstractmethod
-    def _operator(cls) -> str: ...
+    def __and__(self, operand: "BaseExpression") -> "BaseExpression":
+        return AndExpression(self, operand)
 
-    @abstractmethod
-    def _apply(self, left_hand_side: DataContainer, right_hand_side: DataContainer) -> DataContainer: ...
+    def __or__(self, operand: "BaseExpression") -> "BaseExpression":
+        return OrExpression(self, operand)
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({repr(self._left_hand_side)}, {repr(self._right_hand_side)})"
+    def __invert__(self) -> "BaseExpression":
+        return NotExpression(self)
 
-    def __str__(self) -> str:
-        return f"{str(self._left_hand_side)} {self._operator} {str(self._right_hand_side)}"
+    def __eq__(self, operand: "BaseExpression") -> "BaseExpression":
+        return EqualExpression(self, operand)
 
-
-class UnaryExpression(BaseExpression, ABC):
-    def __init__(self, operand: BaseExpression) -> None:
-        self._operand = operand
-
-    def evaluate(self, **kwargs: Dict[str, DataContainer]) -> DataContainer:
-        value = self._operand.evaluate(**kwargs)
-        return self._apply(value)
-
-    @ property
-    def variables(self) -> Set[str]:
-        return self._operand.variables
-
-    @property
-    @abstractmethod
-    def _operator(cls) -> str: ...
-
-    @abstractmethod
-    def _apply(self, value: DataContainer) -> DataContainer: ...
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({repr(self._operand)})"
-
-    def __str__(self) -> str:
-        return f"{self._operator}{str(self._operand)}"
-
-
-class Number(BaseExpression):
-    def __init__(self, value: str) -> None:
-        self._value: DataContainer
-
-        try:
-            self._value = int(value)
-        except ValueError:
-            try:
-                self._value = float(value)
-            except ValueError:
-                self._value = complex(value)
-
-    def evaluate(self, **kwargs: DataContainer) -> DataContainer:
-        return self._value
-
-    @ property
-    def variables(self) -> Set[str]:
-        return set()
-
-    def __repr__(self):
-        return f"Number('{repr(self._value)}')"
-
-    def __str__(self):
-        return str(self._value)
+    def __ne__(self, operand: "BaseExpression") -> "BaseExpression":
+        return NotEqualExpression(self, operand)
 
 
 class Variable(BaseExpression):
     def __init__(self, name: str) -> None:
         self._name = name
 
-    def evaluate(self, **kwargs: DataContainer) -> DataContainer:
-        if self._name not in kwargs:
+    def evaluate(self, **variable_values: TypedValue) -> TypedValue:
+        if self._name not in variable_values:
             raise ValueError(f"Variable `{self._name}` does not have a value!")
 
-        return kwargs[self._name]
+        return variable_values[self._name]
 
     @ property
     def variables(self) -> Set[str]:
@@ -158,11 +109,11 @@ class FunctionExpression(BaseExpression):
         self._name = name
         self._argument = argument
 
-    def evaluate(self, **kwargs: DataContainer) -> DataContainer:
+    def evaluate(self, **variable_values: TypedValue) -> TypedValue:
         if self._name not in self.supported_functions.keys():
             raise ValueError(f"Function `{self._name}` has not been defined!")
 
-        return self.supported_functions[self._name](*self._argument.evaluate(**kwargs))
+        return self.supported_functions[self._name](*self._argument.evaluate(**variable_values))
 
     @ property
     def variables(self) -> Set[str]:
@@ -186,8 +137,8 @@ class FunctionArgument(object):
     def __init__(self, *expression: BaseExpression) -> None:
         self._expressions = [*expression]
 
-    def evaluate(self, **kwargs: DataContainer) -> List[DataContainer]:
-        return [expression.evaluate(**kwargs) for expression in self._expressions]
+    def evaluate(self, **variable_values: TypedValue) -> List[TypedValue]:
+        return [expression.evaluate(**variable_values) for expression in self._expressions]
 
     @ property
     def variables(self) -> Set[str]:
@@ -218,55 +169,338 @@ class FunctionArgument(object):
         return f"{', '.join([str(expression) for expression in self._expressions])}"
 
 
-class AdditionExpression(BinaryExpression):
-    @property
-    def _operator(self) -> str:
+class BaseUnaryExpression(BaseExpression):
+    def __init__(self, operand_expression: BaseExpression) -> None:
+        self._operand_expression = operand_expression
+
+    def evaluate(self, **variable_values: TypedValue) -> TypedValue:
+        operand_value = self._operand_expression.evaluate(**variable_values)
+        return self._apply(operand_value)
+
+    @ property
+    def variables(self) -> Set[str]:
+        return self._operand_expression.variables
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({repr(self._operand_expression)})"
+
+    def __str__(self) -> str:
+        return f"{self._operator_symbol}{str(self._operand_expression)}"
+
+    @ property
+    @ abstractmethod
+    def _operator_symbol(self) -> str: ...
+
+    @ abstractmethod
+    def _apply(self, operand_value: TypedValue) -> TypedValue: ...
+
+
+class BaseBinaryExpression(BaseExpression):
+    def __init__(self, left_hand_side_expression: BaseExpression, right_hand_side_expression: BaseExpression) -> None:
+        self._left_hand_side_expression = left_hand_side_expression
+        self._right_hand_side_expression = right_hand_side_expression
+
+    def evaluate(self, **variables_values: TypedValue) -> TypedValue:
+        left_hand_side_value = self._left_hand_side_expression.evaluate(**variables_values)
+        right_hand_side_value = self._right_hand_side_expression.evaluate(**variables_values)
+        return self._apply(left_hand_side_value, right_hand_side_value)
+
+    @ property
+    def variables(self) -> Set[str]:
+        return self._right_hand_side_expression.variables.union(self._left_hand_side_expression.variables)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({repr(self._left_hand_side_expression)}, {repr(self._right_hand_side_expression)})"
+
+    def __str__(self) -> str:
+        return f"{str(self._left_hand_side_expression)} {self._operator_symbol} {str(self._right_hand_side_expression)}"
+
+    @ property
+    @ abstractmethod
+    def _operator_symbol(self) -> str: ...
+
+    @ abstractmethod
+    def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> TypedValue: ...
+
+
+class BaseTrinaryExpression(BaseExpression):
+    def __init__(self, operand1_expression: BaseExpression, operand2_expression: BaseExpression, operand3_expression: BaseExpression) -> None:
+        self._operand1_expression = operand1_expression
+        self._operand2_expression = operand2_expression
+        self._operand3_expression = operand3_expression
+
+    def evaluate(self, **variable_values: TypedValue) -> TypedValue:
+        operand1_value = self._operand1_expression.evaluate(**variable_values)
+        operand2_value = self._operand2_expression.evaluate(**variable_values)
+        operand3_value = self._operand3_expression.evaluate(**variable_values)
+        return self._apply(operand1_value, operand2_value, operand3_value)
+
+    @ property
+    def variables(self) -> Set[str]:
+        return self._operand1_expression.variables.union(self._operand2_expression.variables).union(self._operand3_expression.variables)
+
+    @ abstractmethod
+    def _apply(self, operand1_value: TypedValue, operand2_value: TypedValue,
+               operand3_value: TypedValue) -> TypedValue: ...
+
+
+class IfExpression(BaseTrinaryExpression):
+    def __repr__(self) -> str:
+        return f"IfExpression({repr(self._operand1_expression)}, {repr(self._operand2_expression)}, {repr(self._operand3_expression)})"
+
+    def __str__(self) -> str:
+        return f"{str(self._operand1_expression)}?{str(self._operand2_expression)}:{str(self._operand3_expression)}"
+
+    def _apply(self, operand1_value: TypedValue, operand2_value: TypedValue, operand3_value: TypedValue) -> TypedValue:
+        if isinstance(operand1_value, bool):
+            return operand2_value if operand1_value else operand3_value
+
+        if isinstance(operand1_value, SupportsConditional):
+            return operand1_value._cond__(operand2_value, operand3_value)
+
+        raise NotImplementedError("Conditional operation has not been implemented on the first operand.")
+
+
+class AdditionExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "+"
 
-    def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
-        return left_hand_side + right_hand_side
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic | SupportsString:
+        if isinstance(left_hand_side_value, SupportsArithmetic) and isinstance(right_hand_side_value, SupportsArithmetic):
+            return left_hand_side_value + right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsString) and isinstance(right_hand_side_value, SupportsString):
+            return left_hand_side_value + right_hand_side_value
+
+        raise ValueError("invalid arguments for + operation (dose not supports arithmetic or string")
 
 
-class SubtractionExpression(BinaryExpression):
-    @property
-    def _operator(self) -> str:
+class SubtractionExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "-"
 
-    def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
-        return left_hand_side - right_hand_side
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for - operation")
+
+        return left_hand_side_value - right_hand_side_value
 
 
-class MultiplicationExpression(BinaryExpression):
-    @property
-    def _operator(self) -> str:
+class MultiplicationExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "*"
 
-    def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
-        return left_hand_side * right_hand_side
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for * operation")
+
+        return left_hand_side_value * right_hand_side_value
 
 
-class DivisionExpression(BinaryExpression):
-    @property
-    def _operator(self) -> str:
+class DivisionExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "/"
 
-    def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
-        return left_hand_side / right_hand_side
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for / operation")
+
+        return left_hand_side_value / right_hand_side_value
 
 
-class ExponentiationExpression(BinaryExpression):
-    @property
-    def _operator(self) -> str:
+class ExponentiationExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "^"
 
-    def _apply(self, left_hand_side: BaseExpression, right_hand_side: BaseExpression) -> BaseExpression:
-        return left_hand_side ** right_hand_side
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for / operation")
+
+        return left_hand_side_value ** right_hand_side_value
 
 
-class NegativeExpression(UnaryExpression):
-    @property
-    def _operator(self) -> str:
+class NegativeExpression(BaseUnaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
         return "-"
 
-    def _apply(self, value: BaseExpression) -> BaseExpression:
+    def _apply(self, value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(value, SupportsArithmetic):
+            raise ValueError("invalid arguments for - (negative) operation")
+
         return -value
+
+
+class EqualExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "=="
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for numerical EQUAL operation")
+
+        return left_hand_side_value == right_hand_side_value
+
+
+class NotEqualExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "!="
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for numerical NOT EQUAL operation")
+
+        return left_hand_side_value != right_hand_side_value
+
+
+class LessThanExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "<"
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for < operation")
+
+        return left_hand_side_value < right_hand_side_value
+
+
+class LessThanOrEqualExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "<="
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for <= operation")
+
+        return left_hand_side_value <= right_hand_side_value
+
+
+class GreaterThanExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return ">"
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for > operation")
+
+        return left_hand_side_value > right_hand_side_value
+
+
+class GreaterThanOrEqualExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return ">="
+
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
+            raise ValueError("invalid arguments for >= operation")
+
+        return left_hand_side_value >= right_hand_side_value
+
+
+class AndExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "AND"
+
+    def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> SupportsBoolean:
+        if not isinstance(left_hand_side_value, SupportsBoolean) or not isinstance(right_hand_side_value, SupportsBoolean):
+            raise ValueError("invalid arguments for AND operation")
+
+        return left_hand_side_value & right_hand_side_value
+
+
+class OrExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "OR"
+
+    def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> TypedValue:
+        if not isinstance(left_hand_side_value, SupportsBoolean) or not isinstance(right_hand_side_value, SupportsBoolean):
+            raise ValueError("invalid arguments for OR operation")
+
+        return left_hand_side_value | right_hand_side_value
+
+
+class NotExpression(BaseUnaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "NOT"
+
+    def _apply(self, operand_value: TypedValue) -> TypedValue:
+        if not isinstance(operand_value, SupportsBoolean):
+            raise ValueError("invalid arguments for NOT operation")
+
+        return ~operand_value
+
+
+class Text(BaseExpression):
+    def __init__(self, value: str) -> None:
+        self._value = value
+
+    def evaluate(self, **_: TypedValue) -> str:
+        return self._value
+
+    @ property
+    def variables(self) -> Set[str]:
+        return set()
+
+    def __repr__(self):
+        return f"Text('{repr(self._value)}')"
+
+    def __str__(self):
+        return str(self._value)
+
+
+class Number(BaseExpression):
+    def __init__(self, value: str) -> None:
+        self._value: int | float | complex
+
+        try:
+            self._value = int(value)
+        except ValueError:
+            try:
+                self._value = float(value)
+            except ValueError:
+                self._value = complex(value)
+
+    def evaluate(self, **_: TypedValue) -> int | float | complex:
+        return self._value
+
+    @ property
+    def variables(self) -> Set[str]:
+        return set()
+
+    def __repr__(self):
+        return f"Number('{repr(self._value)}')"
+
+    def __str__(self):
+        return str(self._value)
+
+
+class Boolean(BaseExpression):
+    def __init__(self, value: bool) -> None:
+        self._value = value
+
+    def evaluate(self, **_: TypedValue) -> bool:
+        return self._value
+
+    @ property
+    def variables(self) -> Set[str]:
+        return set()
+
+    def __repr__(self):
+        return f"Boolean('{repr(self._value)}')"
+
+    def __str__(self):
+        return str(self._value)

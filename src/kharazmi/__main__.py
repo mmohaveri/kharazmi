@@ -1,11 +1,9 @@
 from typing import Union
 from .parser import EquationParser
-from .builtin_math import activate_builtin_math
 
 
 def main():
     parser = EquationParser()
-    activate_builtin_math()
 
     while True:
         cmd = input("> ")

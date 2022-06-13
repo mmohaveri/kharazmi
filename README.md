@@ -39,7 +39,7 @@ user_input = "2*x / (2 - y)"
 expression = parser.parse(user_input)
 ```
 
-All expressions are subclass of `kharazmi.models.BaseExpression` class. You can work with them as if they were python
+All expressions are subclass of `kharazmi.models.BaseNumericalExpression` class. You can work with them as if they were python
 variables containing integers, e.g:
 
 ```python
@@ -57,7 +57,7 @@ x = parser.parse("x")
 expression4 = 2*x + 4
 ```
 
-`BaseExpression` class provides a `evaluate` method. It allows you to evaluate value of an expression given the values
+`BaseNumericalExpression` class provides a `evaluate` method. It allows you to evaluate value of an expression given the values
 you provides for variables:
 
 ```python

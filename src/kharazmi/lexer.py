@@ -1,6 +1,6 @@
 from typing import Set
-from sly import Lexer  # pyright: ignore [reportMissingTypeStubs]
-from sly.lex import Token  # pyright: ignore [reportMissingTypeStubs]
+from sly import Lexer
+from sly.lex import Token
 
 
 from .exceptions import LexError
@@ -8,25 +8,77 @@ from .exceptions import LexError
 
 class EquationLexer(Lexer):
     tokens: Set[str] = {
-        NUMBER,  # pyright: ignore [reportUndefinedVariable]
-        IDENTIFIER,  # pyright: ignore [reportUndefinedVariable]
-        PLUS,  # pyright: ignore [reportUndefinedVariable]
-        MINUS,  # pyright: ignore [reportUndefinedVariable]
-        TIMES,  # pyright: ignore [reportUndefinedVariable]
-        DIVIDE,  # pyright: ignore [reportUndefinedVariable]
-        POWER,  # pyright: ignore [reportUndefinedVariable]
+        NUMBER,
+        IDENTIFIER,
+        PLUS,
+        MINUS,
+        TIMES,
+        DIVIDE,
+        POWER,
+        EQUAL,
+        NOT_EQUAL,
+        GREATER_THAN,
+        LESS_THAN,
+        GREATER_THAN_OR_EQUAL,
+        LESS_THAN_OR_EQUAL,
+        AND,
+        OR,
+        NOT,
+        TRUE,
+        FALSE,
+        IF,
+        THEN,
+        ELSE,
+        TEXT,
     }
 
-    literals = ["(", ")", ","]
+    literals = ["(", ")", ",", "."]
     ignore = " \t"
 
+    # NOTE: ordering of tokens should be in a way that more specific tokens (e.g: IS LESS THAN) come before less specific ones (e.g: IS)
+
+    @_(r"\d+(\.\d+)?((\+|\-)\d+(\.\d*)?j)?")
+    def NUMBER(self, t):
+        try:
+            t.value = int(t.value)
+        except ValueError:
+            try:
+                t.value = float(t.value)
+            except ValueError:
+                t.value = complex(t.value)
+
+        return t
+
+    PLUS = r"\+"
+    MINUS = r"-"
+    TIMES = r"\*"
+    DIVIDE = r"/"
+    POWER = r"\^"
+
+    GREATER_THAN_OR_EQUAL = r"\>=|IS GREATER THAN OR EQUAL|is greater than or equal"
+    GREATER_THAN = r"\>|IS GREATER THAN|is greater than"
+
+    LESS_THAN_OR_EQUAL = r"\<=|IS LESS THAN OR EQUAL|is less than or equal"
+    LESS_THAN = r"\<|IS LESS THAN|is less than"
+
+    NOT_EQUAL = r"\!\=|IS NOT|is not"
+
+    EQUAL = r"\=\=|IS|is"
+
+    AND = r"\&\&|AND|and"
+    OR = r"\|\||OR|or"
+    NOT = r"\!|NOT|not"
+    TRUE = r"true|TRUE|True"
+    FALSE = r"false|FALSE|False"
+    IF = r"if|IF"
+    THEN = r"then|THEN"
+    ELSE = r"else|ELSE"
     IDENTIFIER = r"[a-zA-Z_][a-zA-Z_0-9]*"
-    NUMBER = r"\d+(\.\d*)?((\+|\-)\d+(\.\d*)?j)?"
-    PLUS = r'\+'
-    MINUS = r'-'
-    TIMES = r'\*'
-    DIVIDE = r'/'
-    POWER = r'\^'
+
+    @_(r"\".*?\"")
+    def TEXT(self, t):
+        t.value = t.value[1:-1]
+        return t
 
     def error(self, token: Token):
         raise LexError(f"Invalid token '{token.value[0]}'")

@@ -1,8 +1,8 @@
 from typing import NoReturn, Optional
-from sly import Parser  # pyright: ignore[reportMissingTypeStubs]
+from sly import Parser
 
 from .exceptions import ParseError
-from .models import BaseExpression, FunctionExpression, Number, Variable, FunctionArgument
+from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArgument
 from .lexer import EquationLexer
 
 
@@ -10,84 +10,165 @@ class EquationParser(Parser):
     """
     EquationParser implements a CFG parser for the following grammar:
 
-    expression : expression PLUS expression
-               | expression MINUS expression
-               | expression TIMES expression
-               | expression DIVIDE expression
-               | expression POWER expression
-               | ( expression )
-               | MINUS expression
-               | NUMBER
-               | IDENTIFIER
-               | IDENTIFIER ( argument )
+    expression    : expression + expression
+                  | expression - expression
+                  | expression * expression
+                  | expression / expression
+                  | expression ^ expression
+                  | expression && expression
+                  | expression || expression
+                  | expression == expression
+                  | expression != expression
+                  | expression < expression
+                  | expression <= expression
+                  | expression > expression
+                  | expression >= expression
+                  | IF expression THEN expression ELSE expression.
+                  | - expression
+                  | ! expression
+                  | ( expression )
+                  | function_call
+                  | variable
+                  | TEXT
+                  | NUMBER
+                  | TRUE
+                  | FALSE
 
-    argument   : expression
-               | argument , expression
+    function_call : IDENTIFIER ( argument )
+
+    variable      : IDENTIFIER
+
+    argument      : expression
+                  | argument , expression
     """
 
     def __init__(self):
         self.lexer = EquationLexer()
 
     def parse(self, inp: str) -> Optional[BaseExpression]:
-        return super().parse(self.lexer.tokenize(inp))
+        tokens = [t for t in self.lexer.tokenize(inp)]
+        print(tokens)
+        return super().parse(iter(tokens))
 
     tokens = EquationLexer.tokens
 
     precedence = (
-        ("left", PLUS, MINUS),  # type: ignore
-        ("left", TIMES, DIVIDE),  # type: ignore
-        ("left", POWER),  # type: ignore
-        ('right', UMINUS),  # type: ignore
+        ("left", PLUS, MINUS, OR),
+        ("left", TIMES, DIVIDE, AND),
+        ("left", POWER),
+        ('right', NOT),
+        ('left', EQUAL, NOT_EQUAL, LESS_THAN, GREATER_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL),
+        ('right', UMINUS),
     )
 
     start = 'expression'
 
-    @_("expression PLUS expression")  # type: ignore
+    @_("expression PLUS expression")
     def expression(self, p) -> BaseExpression:
         return p.expression0 + p.expression1
 
-    @_("expression MINUS expression")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
+    @_("expression MINUS expression")
+    def expression(self, p) -> BaseExpression:
         return p.expression0 - p.expression1
 
-    @_("expression TIMES expression")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
+    @_("expression TIMES expression")
+    def expression(self, p) -> BaseExpression:
         return p.expression0 * p.expression1
 
-    @_("expression DIVIDE expression")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
+    @_("expression DIVIDE expression")
+    def expression(self, p) -> BaseExpression:
         return p.expression0 / p.expression1
 
-    @_("expression POWER expression")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
+    @_("expression POWER expression")
+    def expression(self, p) -> BaseExpression:
         return p.expression0 ** p.expression1
 
-    @_("'(' expression ')'")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
-        return p.expression
+    @_("expression AND expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 & p.expression1
 
-    @_("MINUS expression %prec UMINUS")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
+    @_("expression OR expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 | p.expression1
+
+    @_("expression EQUAL expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 == p.expression1
+
+    @_("expression NOT_EQUAL expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 != p.expression1
+
+    @_("expression GREATER_THAN expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 > p.expression1
+
+    @_("expression GREATER_THAN_OR_EQUAL expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 >= p.expression1
+
+    @_("expression LESS_THAN expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 < p.expression1
+
+    @_("expression LESS_THAN_OR_EQUAL expression")
+    def expression(self, p) -> BaseExpression:
+        return p.expression0 <= p.expression1
+
+    @_("IF expression THEN expression ELSE expression '.'")
+    def expression(self, p) -> BaseExpression:
+        return IfExpression(p.expression0, p.expression1, p.expression2)
+
+    @ _("MINUS expression %prec UMINUS")
+    def expression(self, p) -> BaseExpression:
         return -p.expression
 
-    @_("NUMBER")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
-        return Number(p[0])
+    @ _("NOT expression")
+    def expression(self, p) -> BaseExpression:
+        return ~p.expression
 
-    @_("IDENTIFIER")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
-        return Variable(p[0])
+    @_("'(' expression ')'")
+    def expression(self, p) -> BaseExpression:
+        return p.expression
 
-    @_("IDENTIFIER '(' argument ')'")  # type: ignore
-    def expression(self, p) -> BaseExpression:  # type: ignore
-        return FunctionExpression(p[0], p[2])
+    @_("function_call")
+    def expression(self, p) -> BaseExpression:
+        return p.function_call
 
-    @_("expression")  # type: ignore
-    def argument(self, p) -> FunctionArgument:  # type: ignore
+    @_("variable")
+    def expression(self, p) -> BaseExpression:
+        return p.variable
+
+    @ _("TEXT")
+    def expression(self, p) -> BaseExpression:
+        return Text(p.TEXT)
+
+    @ _("NUMBER")
+    def expression(self, p) -> BaseExpression:
+        return Number(p.NUMBER)
+
+    @ _("TRUE")
+    def expression(self, p) -> BaseExpression:
+        return Boolean(True)
+
+    @ _("FALSE")
+    def expression(self, p) -> BaseExpression:
+        return Boolean(False)
+
+    @ _("IDENTIFIER '(' argument ')'")
+    def function_call(self, p) -> FunctionExpression:
+        return FunctionExpression(p.IDENTIFIER, p.argument)
+
+    @_("IDENTIFIER")
+    def variable(self, p) -> Variable:
+        return Variable(p.IDENTIFIER)
+
+    @ _("expression")
+    def argument(self, p) -> FunctionArgument:
         return FunctionArgument(p.expression)
 
-    @_("argument ',' expression")  # type: ignore
-    def argument(self, p) -> FunctionArgument:  # type: ignore
+    @ _("argument ',' expression")
+    def argument(self, p) -> FunctionArgument:
         return p.argument + p.expression
 
     def error(self, p) -> NoReturn:
