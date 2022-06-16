@@ -31,6 +31,8 @@ class EquationLexer(Lexer):
         ELSE,
         TEXT,
         LENGTH_OF,
+        IN,
+        NOT_IN,
     }
 
     literals = ["(", ")", ",", ".", "[", "]"]
@@ -70,10 +72,12 @@ class EquationLexer(Lexer):
 
     AND = r"\&\&|AND|and"
     OR = r"\|\||OR|or"
+    NOT_IN = r"NOT IN|not in"
     NOT = r"\!|NOT|not"
     TRUE = r"true|TRUE|True"
     FALSE = r"false|FALSE|False"
     IF = r"if|IF"
+    IN = r"in|IN"
     THEN = r"then|THEN"
     ELSE = r"else|ELSE"
     IDENTIFIER = r"[a-zA-Z_][a-zA-Z_0-9]*"

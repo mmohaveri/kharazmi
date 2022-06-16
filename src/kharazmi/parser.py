@@ -4,7 +4,7 @@ from sly import Parser
 from .types import ListFactory
 
 from .exceptions import ParseError
-from .models import BaseExpression, ListExpression, ListItems, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArguments, LengthExpression
+from .models import BaseExpression, ContainsExpression, ListExpression, ListItems, NotContainsExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArguments, LengthExpression
 from .lexer import EquationLexer
 
 
@@ -25,6 +25,8 @@ class EquationParser(Parser):
                   | expression <= expression
                   | expression > expression
                   | expression >= expression
+                  | expression IN expression
+                  | expression NOT_IN expression
                   | IF expression THEN expression ELSE expression.
                   | LENGTH_OF expression
                   | - expression
@@ -63,11 +65,13 @@ class EquationParser(Parser):
 
     precedence = (
         ("right", LENGTH_OF),
-        ("left", PLUS, MINUS, OR),
-        ("left", TIMES, DIVIDE, AND),
+        ("left", PLUS, MINUS),
+        ("left", TIMES, DIVIDE),
         ("left", POWER),
+        ('left', EQUAL, NOT_EQUAL, LESS_THAN, GREATER_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL, IN, NOT_IN),
+        ('left', OR),
+        ('left', AND),
         ('right', NOT),
-        ('left', EQUAL, NOT_EQUAL, LESS_THAN, GREATER_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL),
         ('right', UMINUS),
     )
 
@@ -124,6 +128,14 @@ class EquationParser(Parser):
     @_("expression LESS_THAN_OR_EQUAL expression")
     def expression(self, p) -> BaseExpression:
         return p.expression0 <= p.expression1
+
+    @_("expression IN expression")
+    def expression(self, p) -> BaseExpression:
+        return ContainsExpression(p.expression0, p.expression1)
+
+    @_("expression NOT_IN expression")
+    def expression(self, p) -> BaseExpression:
+        return NotContainsExpression(p.expression0, p.expression1)
 
     @_("IF expression THEN expression ELSE expression '.'")
     def expression(self, p) -> BaseExpression:

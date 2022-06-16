@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import functools
+from operator import contains
 
 from typing import Dict, List, Set
 
@@ -312,11 +313,14 @@ class AdditionExpression(BaseBinaryExpression):
     def _operator_symbol(self) -> str:
         return "+"
 
-    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic | SupportsString:
+    def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsArithmetic | SupportsString | SupportsList:
         if isinstance(left_hand_side_value, SupportsArithmetic) and isinstance(right_hand_side_value, SupportsArithmetic):
             return left_hand_side_value + right_hand_side_value
 
         if isinstance(left_hand_side_value, SupportsString) and isinstance(right_hand_side_value, SupportsString):
+            return left_hand_side_value + right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsList) and isinstance(right_hand_side_value, SupportsList):
             return left_hand_side_value + right_hand_side_value
 
         raise ValueError("invalid arguments for + operation (dose not supports arithmetic or string")
@@ -478,6 +482,9 @@ class AndExpression(BaseBinaryExpression):
         return "AND"
 
     def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> SupportsBoolean:
+        if isinstance(left_hand_side_value, bool) and isinstance(right_hand_side_value, bool):
+            return left_hand_side_value and right_hand_side_value
+
         if not isinstance(left_hand_side_value, SupportsBoolean) or not isinstance(right_hand_side_value, SupportsBoolean):
             raise ValueError("invalid arguments for AND operation")
 
@@ -490,6 +497,9 @@ class OrExpression(BaseBinaryExpression):
         return "OR"
 
     def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> TypedValue:
+        if isinstance(left_hand_side_value, bool) and isinstance(right_hand_side_value, bool):
+            return left_hand_side_value or right_hand_side_value
+
         if not isinstance(left_hand_side_value, SupportsBoolean) or not isinstance(right_hand_side_value, SupportsBoolean):
             raise ValueError("invalid arguments for OR operation")
 
@@ -502,10 +512,42 @@ class NotExpression(BaseUnaryExpression):
         return "NOT"
 
     def _apply(self, operand_value: TypedValue) -> TypedValue:
+        if isinstance(operand_value, bool):
+            return not operand_value
+
         if not isinstance(operand_value, SupportsBoolean):
             raise ValueError("invalid arguments for NOT operation")
 
         return ~operand_value
+
+
+class ContainsExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "IN"
+
+    def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> TypedValue:
+        if not isinstance(right_hand_side_value, SupportsList):
+            raise ValueError("invalid arguments for IN operation")
+
+        return right_hand_side_value.__contains__(left_hand_side_value)
+
+
+class NotContainsExpression(BaseBinaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "NOT IN"
+
+    def _apply(self, left_hand_side_value: TypedValue, right_hand_side_value: TypedValue) -> TypedValue:
+        if not isinstance(right_hand_side_value, SupportsList):
+            raise ValueError("invalid arguments for IN operation")
+
+        contains = right_hand_side_value.__contains__(left_hand_side_value)
+
+        if isinstance(contains, bool):
+            return not contains
+
+        return ~ contains
 
 
 class Text(BaseExpression):
