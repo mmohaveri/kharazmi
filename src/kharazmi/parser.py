@@ -2,7 +2,7 @@ from typing import NoReturn, Optional
 from sly import Parser
 
 from .exceptions import ParseError
-from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArgument, LengthExpression
+from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArguments, LengthExpression
 from .lexer import EquationLexer
 
 
@@ -35,12 +35,12 @@ class EquationParser(Parser):
                   | TRUE
                   | FALSE
 
-    function_call : IDENTIFIER ( argument )
+    function_call : IDENTIFIER ( arguments )
 
     variable      : IDENTIFIER
 
-    argument      : expression
-                  | argument , expression
+    arguments     : expression
+                  | arguments , expression
     """
 
     def __init__(self):
@@ -161,21 +161,21 @@ class EquationParser(Parser):
     def expression(self, p) -> BaseExpression:
         return Boolean(False)
 
-    @ _("IDENTIFIER '(' argument ')'")
+    @ _("IDENTIFIER '(' arguments ')'")
     def function_call(self, p) -> FunctionExpression:
-        return FunctionExpression(p.IDENTIFIER, p.argument)
+        return FunctionExpression(p.IDENTIFIER, p.arguments)
 
     @_("IDENTIFIER")
     def variable(self, p) -> Variable:
         return Variable(p.IDENTIFIER)
 
     @ _("expression")
-    def argument(self, p) -> FunctionArgument:
-        return FunctionArgument(p.expression)
+    def arguments(self, p) -> FunctionArguments:
+        return FunctionArguments(p.expression)
 
-    @ _("argument ',' expression")
-    def argument(self, p) -> FunctionArgument:
-        return p.argument + p.expression
+    @ _("arguments ',' expression")
+    def arguments(self, p) -> FunctionArguments:
+        return p.arguments.append(p.expression)
 
     def error(self, p) -> NoReturn:
         if p is None:

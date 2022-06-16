@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import functools
 
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set
 
 from .types import Function, SupportsArithmetic, SupportsBoolean, SupportsConditional, SupportsString, TypedValue
 
@@ -105,7 +105,7 @@ class Variable(BaseExpression):
 class FunctionExpression(BaseExpression):
     supported_functions: Dict[str, Function] = {}
 
-    def __init__(self, name: str, argument: "FunctionArgument") -> None:
+    def __init__(self, name: str, argument: "FunctionArguments") -> None:
         self._name = name
         self._argument = argument
 
@@ -133,7 +133,7 @@ class FunctionExpression(BaseExpression):
 register_function = FunctionExpression.register
 
 
-class FunctionArgument(object):
+class FunctionArguments(object):
     def __init__(self, *expression: BaseExpression) -> None:
         self._expressions = [*expression]
 
@@ -144,23 +144,14 @@ class FunctionArgument(object):
     def variables(self) -> Set[str]:
         return functools.reduce(lambda a, b: a.union(b), [expression.variables for expression in self._expressions])
 
-    def __add__(self, op: Union[BaseExpression, 'FunctionArgument']) -> 'FunctionArgument':
-        if isinstance(op, FunctionArgument) is False and isinstance(op, BaseExpression) is False:
+    def append(self, op: BaseExpression) -> 'FunctionArguments':
+        if not isinstance(op, BaseExpression):  # pyright: ignore ["reportUnnecessaryIsinstance"]
             raise NotImplementedError()
 
-        if isinstance(op, FunctionArgument):
-            return FunctionArgument(*self._expressions, *op._expressions)
+        if isinstance(op, FunctionArguments):
+            return FunctionArguments(*self._expressions, *op._expressions)
 
-        return FunctionArgument(*self._expressions, op)
-
-    def __radd__(self, op: Union[BaseExpression, 'FunctionArgument']) -> 'FunctionArgument':
-        if isinstance(op, FunctionArgument) is False and isinstance(op, BaseExpression) is False:
-            raise NotImplementedError()
-
-        if isinstance(op, FunctionArgument):
-            return FunctionArgument(*op._expressions, *self._expressions)
-
-        return FunctionArgument(op, *self._expressions)
+        return FunctionArguments(*self._expressions, op)
 
     def __repr__(self) -> str:
         return f"FunctionArgument({', '.join([repr(expression) for expression in self._expressions])})"
