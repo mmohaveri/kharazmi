@@ -3,7 +3,7 @@ from .parser import EquationParser
 
 
 def main():
-    parser = EquationParser()
+    parser = EquationParser(list_factory=lambda x: list(x))
 
     while True:
         cmd = input("> ")

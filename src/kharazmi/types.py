@@ -1,4 +1,4 @@
-from typing import Protocol, TypeAlias, runtime_checkable, Union
+from typing import Iterable, Protocol, TypeAlias, runtime_checkable, Union
 
 
 TypedValue: TypeAlias = Union["SupportsBoolean", "SupportsArithmetic", "SupportsString", "SupportsList"]
@@ -6,6 +6,10 @@ TypedValue: TypeAlias = Union["SupportsBoolean", "SupportsArithmetic", "Supports
 
 class Function(Protocol):
     def __call__(self, *args: "TypedValue") -> "TypedValue": ...
+
+
+class ListFactory(Protocol):
+    def __call__(self, items: Iterable["TypedValue"]) -> "SupportsList": ...
 
 
 @runtime_checkable

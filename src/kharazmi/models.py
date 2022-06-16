@@ -3,7 +3,7 @@ import functools
 
 from typing import Dict, List, Set
 
-from .types import Function, SupportsArithmetic, SupportsBoolean, SupportsConditional, SupportsString, TypedValue
+from .types import Function, ListFactory, SupportsArithmetic, SupportsBoolean, SupportsConditional, SupportsList, SupportsString, TypedValue
 
 
 class BaseExpression(ABC):
@@ -155,6 +155,49 @@ class FunctionArguments(object):
 
     def __repr__(self) -> str:
         return f"FunctionArgument({', '.join([repr(expression) for expression in self._expressions])})"
+
+    def __str__(self) -> str:
+        return f"{', '.join([str(expression) for expression in self._expressions])}"
+
+
+class ListExpression(BaseExpression):
+    def __init__(self, items: "ListItems") -> None:
+        self.items = items
+
+    def evaluate(self, **variable_values: TypedValue) -> SupportsList:
+        return self.items.evaluate(**variable_values)
+
+    @ property
+    def variables(self) -> Set[str]:
+        return self.items.variables
+
+    def __repr__(self) -> str:
+        return f"ListExpression({repr(self.items)})"
+
+    def __str__(self) -> str:
+        return f"[ {str(self.items)} ]"
+
+
+class ListItems(object):
+    def __init__(self, list_factory: ListFactory, *expression: BaseExpression) -> None:
+        self._expressions = [*expression]
+        self._list_factory = list_factory
+
+    def evaluate(self, **variable_values: TypedValue) -> SupportsList:
+        return self._list_factory([expression.evaluate(**variable_values) for expression in self._expressions])
+
+    @ property
+    def variables(self) -> Set[str]:
+        return functools.reduce(lambda a, b: a.union(b), [expression.variables for expression in self._expressions])
+
+    def append(self, op: BaseExpression) -> 'ListItems':
+        if not isinstance(op, BaseExpression):  # pyright: ignore ["reportUnnecessaryIsinstance"]
+            raise NotImplementedError()
+
+        return ListItems(self._list_factory, *self._expressions, op)
+
+    def __repr__(self) -> str:
+        return f"ListItems({', '.join([repr(expression) for expression in self._expressions])})"
 
     def __str__(self) -> str:
         return f"{', '.join([str(expression) for expression in self._expressions])}"
@@ -345,10 +388,19 @@ class EqualExpression(BaseBinaryExpression):
         return "=="
 
     def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
-        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
-            raise ValueError("invalid arguments for numerical EQUAL operation")
+        if isinstance(left_hand_side_value, SupportsArithmetic) and isinstance(right_hand_side_value, SupportsArithmetic):
+            return left_hand_side_value == right_hand_side_value
 
-        return left_hand_side_value == right_hand_side_value
+        if isinstance(left_hand_side_value, SupportsBoolean) and isinstance(right_hand_side_value, SupportsBoolean):
+            return left_hand_side_value == right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsString) and isinstance(right_hand_side_value, SupportsString):
+            return left_hand_side_value == right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsList) and isinstance(right_hand_side_value, SupportsList):
+            return left_hand_side_value == right_hand_side_value
+
+        raise ValueError("invalid arguments for EQUAL operation")
 
 
 class NotEqualExpression(BaseBinaryExpression):
@@ -357,10 +409,19 @@ class NotEqualExpression(BaseBinaryExpression):
         return "!="
 
     def _apply(self, left_hand_side_value: "TypedValue", right_hand_side_value: "TypedValue") -> SupportsBoolean:
-        if not isinstance(left_hand_side_value, SupportsArithmetic) or not isinstance(right_hand_side_value, SupportsArithmetic):
-            raise ValueError("invalid arguments for numerical NOT EQUAL operation")
+        if isinstance(left_hand_side_value, SupportsArithmetic) and isinstance(right_hand_side_value, SupportsArithmetic):
+            return left_hand_side_value != right_hand_side_value
 
-        return left_hand_side_value != right_hand_side_value
+        if isinstance(left_hand_side_value, SupportsBoolean) and isinstance(right_hand_side_value, SupportsBoolean):
+            return left_hand_side_value != right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsString) and isinstance(right_hand_side_value, SupportsString):
+            return left_hand_side_value != right_hand_side_value
+
+        if isinstance(left_hand_side_value, SupportsList) and isinstance(right_hand_side_value, SupportsList):
+            return left_hand_side_value != right_hand_side_value
+
+        raise ValueError("invalid arguments for NOT EQUAL operation")
 
 
 class LessThanExpression(BaseBinaryExpression):

@@ -1,8 +1,10 @@
 from typing import NoReturn, Optional
 from sly import Parser
 
+from .types import ListFactory
+
 from .exceptions import ParseError
-from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArguments, LengthExpression
+from .models import BaseExpression, ListExpression, ListItems, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArguments, LengthExpression
 from .lexer import EquationLexer
 
 
@@ -30,6 +32,7 @@ class EquationParser(Parser):
                   | ( expression )
                   | function_call
                   | variable
+                  | list
                   | TEXT
                   | NUMBER
                   | TRUE
@@ -41,13 +44,18 @@ class EquationParser(Parser):
 
     arguments     : expression
                   | arguments , expression
+
+    list          : [ list_items ]
+    list_items    : expression
+                  | list_items , expression
     """
 
-    def __init__(self):
-        self.lexer = EquationLexer()
+    def __init__(self, list_factory: ListFactory):
+        self._lexer = EquationLexer()
+        self._list_factory = list_factory
 
     def parse(self, inp: str) -> Optional[BaseExpression]:
-        tokens = [t for t in self.lexer.tokenize(inp)]
+        tokens = [t for t in self._lexer.tokenize(inp)]
         print(tokens)
         return super().parse(iter(tokens))
 
@@ -145,6 +153,10 @@ class EquationParser(Parser):
     def expression(self, p) -> BaseExpression:
         return p.variable
 
+    @_("list")
+    def expression(self, p) -> BaseExpression:
+        return p.list
+
     @ _("TEXT")
     def expression(self, p) -> BaseExpression:
         return Text(p.TEXT)
@@ -176,6 +188,18 @@ class EquationParser(Parser):
     @ _("arguments ',' expression")
     def arguments(self, p) -> FunctionArguments:
         return p.arguments.append(p.expression)
+
+    @ _("'[' list_items ']'")
+    def list(self, p) -> ListExpression:
+        return ListExpression(p.list_items)
+
+    @ _("expression")
+    def list_items(self, p) -> ListItems:
+        return ListItems(self._list_factory, p.expression)
+
+    @ _("list_items ',' expression")
+    def list_items(self, p) -> ListItems:
+        return p.list_items.append(p.expression)
 
     def error(self, p) -> NoReturn:
         if p is None:

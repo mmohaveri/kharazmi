@@ -33,7 +33,7 @@ class EquationLexer(Lexer):
         LENGTH_OF,
     }
 
-    literals = ["(", ")", ",", "."]
+    literals = ["(", ")", ",", ".", "[", "]"]
     ignore = " \t"
 
     # NOTE: ordering of tokens should be in a way that more specific tokens (e.g: IS LESS THAN) come before less specific ones (e.g: IS)
