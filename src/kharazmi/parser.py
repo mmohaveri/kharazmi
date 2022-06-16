@@ -2,7 +2,7 @@ from typing import NoReturn, Optional
 from sly import Parser
 
 from .exceptions import ParseError
-from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArgument
+from .models import BaseExpression, Text, Boolean, Variable, Number, IfExpression, FunctionExpression, FunctionArgument, LengthExpression
 from .lexer import EquationLexer
 
 
@@ -24,6 +24,7 @@ class EquationParser(Parser):
                   | expression > expression
                   | expression >= expression
                   | IF expression THEN expression ELSE expression.
+                  | LENGTH_OF expression
                   | - expression
                   | ! expression
                   | ( expression )
@@ -53,6 +54,7 @@ class EquationParser(Parser):
     tokens = EquationLexer.tokens
 
     precedence = (
+        ("right", LENGTH_OF),
         ("left", PLUS, MINUS, OR),
         ("left", TIMES, DIVIDE, AND),
         ("left", POWER),
@@ -118,6 +120,10 @@ class EquationParser(Parser):
     @_("IF expression THEN expression ELSE expression '.'")
     def expression(self, p) -> BaseExpression:
         return IfExpression(p.expression0, p.expression1, p.expression2)
+
+    @_("LENGTH_OF expression")
+    def expression(self, p) -> BaseExpression:
+        return LengthExpression(p.expression)
 
     @ _("MINUS expression %prec UMINUS")
     def expression(self, p) -> BaseExpression:

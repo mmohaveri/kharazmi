@@ -261,6 +261,18 @@ class IfExpression(BaseTrinaryExpression):
         raise NotImplementedError("Conditional operation has not been implemented on the first operand.")
 
 
+class LengthExpression(BaseUnaryExpression):
+    @ property
+    def _operator_symbol(self) -> str:
+        return "len "
+
+    def _apply(self, value: "TypedValue") -> SupportsArithmetic:
+        if not isinstance(value, SupportsString):
+            raise ValueError("invalid arguments for - (negative) operation")
+
+        return value.__len__()
+
+
 class AdditionExpression(BaseBinaryExpression):
     @ property
     def _operator_symbol(self) -> str:

@@ -30,6 +30,7 @@ class EquationLexer(Lexer):
         THEN,
         ELSE,
         TEXT,
+        LENGTH_OF,
     }
 
     literals = ["(", ")", ",", "."]
@@ -64,6 +65,8 @@ class EquationLexer(Lexer):
     NOT_EQUAL = r"\!\=|IS NOT|is not"
 
     EQUAL = r"\=\=|IS|is"
+
+    LENGTH_OF = r"length of|LENGTH OF"
 
     AND = r"\&\&|AND|and"
     OR = r"\|\||OR|or"
