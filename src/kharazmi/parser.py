@@ -58,7 +58,6 @@ class EquationParser(Parser):
 
     def parse(self, inp: str) -> Optional[BaseExpression]:
         tokens = [t for t in self._lexer.tokenize(inp)]
-        print(tokens)
         return super().parse(iter(tokens))
 
     tokens = EquationLexer.tokens

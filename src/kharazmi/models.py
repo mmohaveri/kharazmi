@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import functools
-from operator import contains
 
 from typing import Dict, List, Set
 
